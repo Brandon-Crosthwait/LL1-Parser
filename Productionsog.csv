@@ -1,0 +1,13 @@
+1,2,3,4
+Goal,Expr,,
+Expr,Term,Expr`,
+Expr`,+,Term,Expr`
+Expr`,-,Term,Expr`
+Expr`,∈,,
+Term,Factor,Term`,
+Term`,*,RTerm,Expr`
+Term`,/,RTerm,Expr`
+Term`,∈,,
+Factor,(,Expr,)
+Factor,num,,
+Factor,name,,
