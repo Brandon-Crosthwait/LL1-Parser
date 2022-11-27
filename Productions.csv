@@ -6,8 +6,8 @@ RTerm,RFactor,Term`,
 Expr`,+,RTerm,Expr`
 Expr`,-,RTerm,Expr`
 Expr`,∈,,
-Term`,*,RTerm,Expr`
-Term`,/,RTerm,Expr`
+Term`,*,GFactor,Term`
+Term`,/,GFactor,Term`
 Term`,∈,,
 LFactor,GFactor,,
 LFactor,negnum,,
@@ -15,8 +15,8 @@ LFactor,negname,,
 RFactor,GFactor,,
 GFactor,(,Expr,)
 GFactor,PosVal,,
-GFactor,SpaceNegVal,,
+GFactor,NegVal,,
 PosVal,num,,
 PosVal,name,,
-SpaceNegVal,spacenegnum,,
-SpaceNegVal,spacenegname,,
+NegVal,negnum,,
+NegVal,negname,,

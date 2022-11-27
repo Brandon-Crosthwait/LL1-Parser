@@ -1,2 +1,2 @@
 # LL1-Parser
-In progress project to build a simple ll1 parser in python
+Python Script and Productions built to check if simple math and variables are valid

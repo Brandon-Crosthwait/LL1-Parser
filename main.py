@@ -1,33 +1,28 @@
-import collections
-import sys
 import re
 import numpy as np
 import pandas as pd
 
-dupP = {'E': "Expr`", 'E1': "Expr`", 'T': "Term`", 'T1': "Term`", 'F': 'Factor', 'F1': 'Factor', 'LF': 'LFactor',
-        'LF1': 'LFactor', 'GF': 'GFactor', 'GF1': 'GFactor', 'PV': 'PosVal', 'SNV': 'SpaceNegVal'}
+# Declare Variables
+df = pd.read_csv("Productions.csv")
+TableDefinitions = ['eof', '+', '-', '*', '/', '(', ')', 'name', 'num', 'negnum', 'negname']
+Terminals = ['eof', '+', '-', '*', '/', '(', ')', 'name', 'num', 'negnum', 'negname', '∈']
+NonTerminals = ['Goal', 'Expr', 'Expr`', 'RTerm', 'LTerm', 'Term`', "GFactor", "RFactor", "LFactor", "PosVal", "NegVal"]
 
-df = pd.read_csv("Productionsog.csv")
-
-TableDefinitions = ['eof', '+', '-', '*', '/', '(', ')', 'name', 'num']
-
-Terminals = ['eof', '+', '-', '*', '/', '(', ')', 'name', 'num', '∈']
-# NonTerminals = ['Goal', 'Expr', 'Expr`', 'RTerm', 'LTerm', 'Term`', "GFactor", "RFactor", "LFactor", "PosVal", "SpaceNegVal"]
-NonTerminals = ['Goal', 'Expr', 'Expr`', 'Term', 'Term`', 'Factor']
-
-ParseTable = {} #Need a better way to store the generated parse table
+ParseTable = {}
 First = {}
 Follow = {}
 
+# Sets each Terminal to be equal to itself for first set
 for var in Terminals:
     First[var] = var
 
+# Sets each NonTerminal to be an empty array
 for var in NonTerminals:
     ParseTable[var] = []
     First[var] = []
     Follow[var] = []
 
-
+# Gets the length of a production while ignoring empty parts of the sequence
 def getLength(row):
     if isinstance(row[2], float):
         return 1
@@ -40,7 +35,7 @@ def getLength(row):
 index = -1
 change = True
 
-#Build First
+#Build First Set
 while True:
     oldFirst = First.copy();
     for i, row in df.iterrows():
@@ -66,34 +61,30 @@ while True:
         break
     change = False
 
-
 Follow['Goal'] = 'eof'
+change = True
 
-#Builds Follow
-while True:
+#Build Follow Set
+while change:
+    change = False
     oldFollow = Follow.copy();
-    for i, row in df.iterrows():
+    for index, row in df.iterrows():
         B = row.drop(row.index[0])
         k = getLength(row)
-        Trailer = Follow.get(row[0])
+        Trailer = Follow.get(row[0], 1)
         for i in reversed(range(k)):
             if B[i] in NonTerminals:
                 Follow[B[i]] = np.unique(np.concatenate((Follow[B[i]], Trailer), axis=None))
-                if not (np.array_equal(oldFollow.get(B[i]), Follow.get(B[i]))):
-                    change = True
                 if '∈' in First.get(B[i]):
-                    temp = np.delete(First.get(B[i]), np.argwhere(First.get(B[i]) == '∈'))
-                    if temp.size != 0:
-                        Trailer = np.concatenate((Trailer, temp), axis=None)
+                    Trailer = np.concatenate((Trailer, np.delete(First.get(B[i]), np.argwhere(First.get(B[i]) == '∈'))), axis=None)
                 else:
                     Trailer = First.get(B[i])
             else:
                 Trailer = First.get(B[i])
-    if not change:
-        break
-    change = False
+        if not (np.array_equal(oldFollow.get(B[i]), Follow.get(B[i]))):
+            change = True
 
-#Creates the parse table
+#Build parse table from the First and Follow sets
 p = 0
 for A in NonTerminals:
     for w in Terminals:
@@ -116,11 +107,8 @@ for i, row in df.iterrows():
         p += 1
         continue
 
-# returns the next parsable word
+# Returns any given line into a parsable array.
 def nextWord(equation):
-    if "+-" in equation or "--" in equation:
-        return ['valid', 'tns']
-
     newline = equation.strip()
     newline = newline.replace(" ", "")
 
@@ -137,64 +125,60 @@ def nextWord(equation):
             pass
     return filteredline
 
-print('Enter your fileName: ')
-# file = input();
-file = "ll1valid-1.txt"
-word = ''
-# Begin reading txt file line by line
+# print('Enter your fileName: ')
+# file = input()
+file="ll1valid.txt"
+
+# Reads in file and compares lines to production to check if equations are valid
 with open(file, encoding="UTF-8") as basic:
     for line in basic:
+        WordArr = nextWord(line)
+        WordArr.append('eof')
+        WordInt = 0
         stack = [];
-        iterator = nextWord(line)
-        word = iterator[0]
         stack.append('eof')
         stack.append('Goal')
-        focus = stack[-1]
+        focus = stack[-1] # grabs the top of the stack
         while True:
-            if (focus == 'eof') & (word == 'eof'):
+            if (focus == 'eof') and (WordArr[WordInt] == 'eof'):
                 print(line.strip() + " is valid")
                 break
-            elif (focus == 'eof') | (focus not in ParseTable.keys()):  # need to look into this
-                if focus in TableDefinitions:
-                    try:
-                        stack.pop()
-                    except IndexError:
-                        pass
-                    try:
-                        focus = stack[-1]
-                    except IndexError:
-                        pass
-                    iterator.pop(0)
-                    try:
-                        word = iterator[0]
-                    except IndexError:
-                        word = 'eof'
-
+            elif (focus == 'eof') | (focus in Terminals):
+                if (focus in Terminals):
+                    if len(WordArr) - 1 > WordInt:
+                        WordInt += 1
+                    stack.pop()
                 else:
                     print(line.strip() + " is invalid")
                     break
             else:
-                if word in (['eof', '+', '-', '*', '/', '(', ')']):
-                    tempword = word
-                elif word.isnumeric():
-                    tempword = 'num'
+                # Check for variable type
+                if WordArr[WordInt] in (['eof', '+', '-', '*', '/', '(', ')']):
+                    tempword = WordArr[WordInt]
+                elif WordArr[WordInt][0] == "-":
+                    if WordArr[WordInt].lstrip("-").isnumeric():
+                        tempword = "negnum"
+                    else:
+                        tempword = "negname"
                 else:
-                    tempword = 'name'
+                    if WordArr[WordInt].isnumeric():
+                        tempword = 'num'
+                    else:
+                        tempword = 'name'
+
+                # add productions from parse table
                 if ParseTable[focus][TableDefinitions.index(tempword)] != None:
-                    print("Here")
                     stack.pop()
                     Product = ParseTable[focus][TableDefinitions.index(tempword)]
                     TD = df.iloc[[Product]].squeeze()
-                    if isinstance(TD[1], float):
-                        k = 1
-                    elif isinstance(row[2], float):
-                        k = 2
-                    else:
-                        k = 3
-                    for i in reversed(range(k)):
-                        if TD[i] != '∈':
-                            stack.append(TD[i])
+                    for definition in reversed(TD.iloc[1:]):
+                        if definition != '∈' and isinstance(definition, str):
+                            stack.append(definition)
                 else:
                     print(line.strip() + " is invalid")
                     break
+            try:
                 focus = stack[-1]
+            except:
+                print(line.strip() + " is invalid")
+                break
